@@ -1,0 +1,108 @@
+1) la nouvelle version du constructeur de KdTree (construisant un arbre équilibré) 
+doit faire appel à une fonction récursive :
+
+/** Recursively create a balanced subtree. 
+ *
+ *  If too many point remains when the maximal depth is reached, 
+ *  replace the remaining point by their barycenter.
+ *
+ * @param points the points to be inserted in the subtree
+ * @param depth the depth of the root of the subtree once inserted in the main tree
+ * @param max_depth the maximal depth of the kdtree
+ * @return the KdNode that correspond to the root of the subtree
+ */
+private KdNode buildTree(ArrayList<Point> points, 
+                         int depth, int max_depth) 
+{
+    // TERMINAISON : 
+    // si points.size()==0 retourner null (sous-arbre vide)
+
+    // TRAITEMENT SPECIAL pour le problème de la quantization
+    // if depth == max_depth créer un noeud feuille comportant le barycentre des points restant
+
+    // Calcul de la dimension de la coupe (il est possible de commencer par
+    // d=depth%3)
+	
+    // Trier le tableau de point en fonction de la dimension choisi
+    // (cela permet d’obtenir la médiane et son indice)
+
+    // Partager le tableau en deux tableaux (indice inférieur et supérieur à médiane)
+    // left_points, right_points
+
+    // Créer récursivement deux sous arbres
+    left_child = buildTree(left_points,depth+1,max_depth);
+    right_child = buildTree(right_points,depth+1,max_depth);
+
+    // Créer le nouveau noeud de profondeur depth et le retourner
+}
+
+2) Utilisation pour la quantification d’image
+
+Cette partie se réalise en trois principale étapes : générer la palette de couleur, calculer les nouvelles couleur pour chaque pixel et enfin sauvegarder le résultat.
+
+Création de la palette
+
+    - Créer tableau (ArrayList<Point3i>) comprenant les couleurs de chaque pixel de l’image.
+
+    - Générer un KdTree à partir du tableau créer et ayant une profondeur maximale fixée (NB : la profondeur maximal donne le nombre de couleur présente dans la palette : 2^max_depth).
+
+    - Les couleurs de la palette sont contenues dans les feuilles de l’arbre, on peut les récupérer avec la fonction getPointsFromLeaf.
+            ArrayList<Point3i> palette_colors = new ArrayList<Point3i>();
+            tree.getPointsFromLeaf(palette_colors);
+
+Choisir quel couleur de la palette utiliser pour chaque pixel de l’image d’origine :
+   
+    - Pour chaque pixel, la couleur à utiliser est la plus proche parmi les couleurs de la palette, pour optimiser ces test, il faut donc reconstruire un KdTree.
+  
+    - Cependant, il faut légèrement adapter les points utiliser pour être en mesure de retrouver l’indice d’une couleur dans la palette et non pas seulement la valeur de la couleur. Pour cela on va créer des Points contenant également la position dans la palette :
+    ArrayList<RefColor> tmp_palette = new ArrayList<RefColor>(1<<max_depth);
+    int i = 0;
+    for(Point3i p : palette_colors) {
+        tmp_palette.add(new RefColor(p,i));
+        ++i;
+    }
+
+    - On veut ensuite créer et utiliser un KdTree pour remplir un tableau contenant l’indice de la couleur à utilisé pour chaque pixel (il faudra donc faire appel à la fonction getNN pour chaque pixel de l'image).
+    	int v_id[] = new int[imgHeight*imgWidth];
+
+Sauvegarde des résultats sous forme visualisable :
+
+// Save an image with the new colors
+for (int y = 0; y < imgHeight; y++) {
+    for (int x = 0; x < imgWidth; x++) {
+
+        int id = v_id[x*imgHeight+y]; // Get id of new color for current pixel
+        Point3i color = palette_colors.get(id);  // Get color from id
+
+        // Save it in picture
+
+        int R = color.get(0);
+        int G = color.get(1);
+        int B = color.get(2);
+
+        int cRes = 0xff000000 | (R << 16)
+                              | (G << 8)
+                              | B;
+        res_img.setRGB(x,y,cRes);
+    }
+}
+
+Si on le souhaite, on peut également sauvegarder les couleurs de la palette dans une image :
+           
+// Save the palette as an image (each color of the palette is represented by a block
+// of 8x8 pixels
+BufferedImage palette_img = new BufferedImage(palette_colors.size()*8, 8, img.getType());
+for (int j = 0; j < palette_colors.size(); j++) {
+    int R = palette_colors.get(j).get(0);
+    int G = palette_colors.get(j).get(1);
+    int B = palette_colors.get(j).get(2);
+    int cRes = 0xff000000 | (R << 16)
+                          | (G << 8)
+                          | B;
+
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
+            palette_img.setRGB(x+j*8,y,cRes);
+         }
+    }
+}
